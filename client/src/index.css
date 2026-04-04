@@ -1,0 +1,27 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  background: #f8f9fb;
+  color: #1a1a2e;
+  min-height: 100vh;
+}
+
+:root {
+  --primary: #2C5F8A;
+  --primary-light: #e6f1fb;
+  --accent: #1D9E75;
+  --accent-light: #eaf3de;
+  --warn: #BA7517;
+  --warn-light: #faeeda;
+  --danger: #A32D2D;
+  --danger-light: #fcebeb;
+  --border: #e2e8f0;
+  --surface: #ffffff;
+  --muted: #64748b;
+  --radius: 10px;
+  --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+}
+
+button { cursor: pointer; font-family: inherit; }
+textarea, input { font-family: inherit; }
