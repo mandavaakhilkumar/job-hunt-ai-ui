@@ -1,3 +1,4 @@
+require('dotenv').config({ path: require('path').join(__dirname, '..', '..', 'job-hunt-ai', '.env') });
 const express = require('express');
 const multer = require('multer');
 const cors = require('cors');
@@ -43,11 +44,20 @@ function sendLog(jobId, data) {
 
 // ── Run pipeline ────────────────────────────────────────────────────────────
 app.post('/api/run', upload.single('resume'), async (req, res) => {
+  console.log('📝 POST /api/run received');
   const { jd, email, skipEmail } = req.body;
   const jobId = `job_${Date.now()}`;
 
-  if (!req.file) return res.status(400).json({ error: 'Resume PDF required' });
-  if (!jd) return res.status(400).json({ error: 'Job description required' });
+  if (!req.file) {
+    console.log('❌ No resume file');
+    return res.status(400).json({ error: 'Resume PDF required' });
+  }
+  if (!jd) {
+    console.log('❌ No JD text');
+    return res.status(400).json({ error: 'Job description required' });
+  }
+
+  console.log(`✅ Upload OK. jobId: ${jobId}, email: ${email}`);
 
   // Save JD to temp file
   const jdPath = path.join(__dirname, 'uploads', `${jobId}_jd.txt`);
@@ -57,9 +67,12 @@ app.post('/api/run', upload.single('resume'), async (req, res) => {
   const outputDir = path.join(__dirname, 'outputs', jobId);
   fs.mkdirSync(outputDir, { recursive: true });
 
+  res.json({ jobId });
+
   // Build Python args
+  const jobHuntAiDir = path.join(__dirname, '..', '..', 'job-hunt-ai');
   const args = [
-    path.join(__dirname, '..', 'job-hunt-ai', 'main.py'),
+    path.join(jobHuntAiDir, 'main.py'),
     '--resume', resumePath,
     '--jd', jdPath,
     '--output-dir', outputDir,
@@ -67,22 +80,43 @@ app.post('/api/run', upload.single('resume'), async (req, res) => {
   if (email) args.push('--email', email);
   if (skipEmail === 'true') args.push('--skip-email');
 
-  res.json({ jobId });
+  console.log(`🐍 Running: python ${args[0]}`);
 
-  // Spawn Python pipeline
-  const py = spawn('python3', args, {
-    env: { ...process.env },
-    cwd: path.join(__dirname, '..', 'job-hunt-ai')
+  const py = spawn('python', ['-u', ...args], {
+    shell: true,
+    env: {
+      ...process.env,
+      PYTHONIOENCODING: 'utf-8',
+      PYTHONUTF8: '1',
+      PYTHONUNBUFFERED: '1',
+      SystemRoot: process.env.SystemRoot || 'C:\\Windows',
+      SYSTEMROOT: process.env.SYSTEMROOT || 'C:\\Windows',
+    },
+    cwd: jobHuntAiDir
+  });
+
+  py.on('error', (err) => {
+    console.error(`❌ Python error:`, err);
+    console.error(`   Code: ${err.code}`);
+    console.error(`   Message: ${err.message}`);
+    console.error(`   Path: ${err.path}`);
+    sendLog(jobId, { type: 'error', text: `Failed to start Python: ${err.message}` });
   });
 
   py.stdout.on('data', (data) => {
     const lines = data.toString().split('\n').filter(Boolean);
-    lines.forEach(line => sendLog(jobId, { type: 'log', text: line }));
+    lines.forEach(line => {
+      console.log(`[${jobId}] ${line}`);
+      sendLog(jobId, { type: 'log', text: line });
+    });
   });
 
   py.stderr.on('data', (data) => {
     const lines = data.toString().split('\n').filter(Boolean);
-    lines.forEach(line => sendLog(jobId, { type: 'error', text: line }));
+    lines.forEach(line => {
+      console.error(`[${jobId}] ${line}`);
+      sendLog(jobId, { type: 'error', text: line });
+    });
   });
 
   py.on('close', (code) => {

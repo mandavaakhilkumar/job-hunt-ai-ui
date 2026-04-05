@@ -26,7 +26,7 @@ export default function Results({ files, onReset }) {
       {/* Success banner */}
       <div style={{
         background: 'var(--accent-light)', border: '1px solid #9fe1cb',
-        borderRadius: var(--radius, '10px'), padding: '1.25rem 1.5rem',
+        borderRadius: 'var(--radius, 10px)', padding: '1.25rem 1.5rem',
         marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: 12
       }}>
         <span style={{ fontSize: 28 }}>🎉</span>
